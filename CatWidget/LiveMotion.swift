@@ -79,7 +79,7 @@ struct Wedge: Shape {
         let steps = 12
         for k in 0...steps {
             let deg = startDegrees + (endDegrees - startDegrees) * Double(k) / Double(steps)
-            let a = deg * .pi / 180
+            let a = CGFloat(deg) * .pi / 180
             p.addLine(to: CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a)))
         }
         p.closeSubpath()
