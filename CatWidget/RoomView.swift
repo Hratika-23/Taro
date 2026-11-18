@@ -37,7 +37,7 @@ struct CatPlacement {
         func reach(_ y: CGFloat) -> CGFloat { 21 * 1.12 * depthScale(y) * Spot.catScale }
         switch scene {
         case .sit:
-            return CatPlacement(at: P(176, 302), depth: 302, dir: dir, pose: .sit, face: face)
+            return CatPlacement(at: P(162, 300), depth: 300, dir: dir, pose: .sit, face: face)
         case .loaf:
             face.eyes = happy ? "happy" : "open"
             return CatPlacement(at: P(206, 342), depth: 342, dir: dir, pose: .lie, face: face, wag: 0.18, swish: 3.4)
