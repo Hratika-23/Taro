@@ -1,0 +1,38 @@
+name: Build Taro (unsigned IPA)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build app (no signing — SideStore signs it on your iPhone)
+        run: |
+          xcodebuild -project CatHome.xcodeproj -scheme CatHome \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package Taro.ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/CatHome.app Payload/
+          zip -qry Taro.ipa Payload
+
+      - name: Publish to Releases (latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest Taro.ipa --title "Taro (latest build)" \
+            --notes "Download Taro.ipa on your iPhone and open it with SideStore."
