@@ -1,160 +1,133 @@
 import Foundation
 
-// MARK: - The cat's life
+// MARK: - What Taro can be doing
 
-enum CatReaction: String, Codable {
-    case none, petted, purrInSleep, eating, playing, tooTired, full, wokeUp, fellAsleep, grumpy
+enum CatScene: String, Codable, CaseIterable {
+    case sit, loaf, stretch, eat, drink, yarn, pompom, window, perch, sleep
 }
 
-enum CatMood { case happy, okay, hungry, bored, tired }
+enum CatReaction: String, Codable { case none, petted, purr, full, grumpy, wokeUp, tooTired }
 
-enum CatPose { case sitting, eating, playing, sleeping }
-
-enum CatAction { case pet, feed, play, toggleSleep }
+enum CatAction { case pet, feed, drink, yarn, pompom, window, toggleSleep }
 
 struct CatState: Codable, Equatable {
-    var fullness: Double = 75      // 0 = starving, 100 = stuffed
-    var fun: Double = 70           // 0 = bored, 100 = delighted
-    var energy: Double = 85        // 0 = exhausted, 100 = full of beans
-    var isSleeping: Bool = false
+    var fullness: Double = 75
+    var fun: Double = 70
+    var energy: Double = 85
+    var hearts: Int = 0
+    var isSleeping = false
+    var sleptAt: Date = .distantPast
+    var lastInteraction: Date = .distantPast
+    var updatedAt = Date()
+    var activity: CatScene? = nil
+    var activityUntil: Date = .distantPast
     var reaction: CatReaction = .none
     var reactionUntil: Date = .distantPast
-    var lastInteraction: Date = .distantPast
-    var sleptAt: Date = .distantPast
-    var updatedAt: Date = Date()
-    var hearts: Int = 0            // how many times you have petted him
 
-    // How fast things change, per hour
-    static let hungerRate = 6.0
-    static let boredomRate = 7.0
-    static let tireRate = 5.0
-    static let restRate = 22.0
+    static func isNight(_ d: Date) -> Bool { let h = Calendar.current.component(.hour, from: d); return h >= 23 || h < 7 }
+    static func isEvening(_ d: Date) -> Bool { let h = Calendar.current.component(.hour, from: d); return h >= 19 || h < 6 }
 
-    /// Bedtime for the cat (he naps on his own at night unless you're playing).
-    static func isNight(_ date: Date) -> Bool {
-        let h = Calendar.current.component(.hour, from: date)
-        return h >= 23 || h < 7
-    }
-
-    /// Lets time pass for the cat, from `updatedAt` up to `date`, in 10-minute steps.
+    /// Lets time pass (10-minute steps): hunger, boredom, naps.
     func advanced(to date: Date) -> CatState {
         var s = self
-        let maxSpan: TimeInterval = 14 * 24 * 3600
-        var t = max(s.updatedAt, date.addingTimeInterval(-maxSpan))
+        var t = max(s.updatedAt, date.addingTimeInterval(-14 * 86400))
         while t < date {
-            let next = min(date, t.addingTimeInterval(600))
-            let h = next.timeIntervalSince(t) / 3600
-            s.fullness = max(0, s.fullness - h * Self.hungerRate)
+            let next = min(date, t.addingTimeInterval(600)), h = next.timeIntervalSince(t) / 3600
+            s.fullness = max(0, s.fullness - h * 6)
             if s.isSleeping {
-                s.fun = max(0, s.fun - h * Self.boredomRate * 0.2)
-                s.energy = min(100, s.energy + h * Self.restRate)
-                let napLongEnough = next.timeIntervalSince(s.sleptAt) > 45 * 60
-                if s.energy >= 95 && napLongEnough && !Self.isNight(next) {
-                    s.isSleeping = false
-                }
+                s.fun = max(0, s.fun - h * 1.5); s.energy = min(100, s.energy + h * 22)
+                if s.energy >= 95, next.timeIntervalSince(s.sleptAt) > 45 * 60, !Self.isNight(next) { s.isSleeping = false }
             } else {
-                s.fun = max(0, s.fun - h * Self.boredomRate)
-                s.energy = max(0, s.energy - h * Self.tireRate)
+                s.fun = max(0, s.fun - h * 7); s.energy = max(0, s.energy - h * 5)
                 let idle = next.timeIntervalSince(s.lastInteraction) > 20 * 60
-                if s.energy <= 8 || (Self.isNight(next) && idle) {
-                    s.isSleeping = true
-                    s.sleptAt = next
-                }
+                if s.energy <= 8 || (Self.isNight(next) && idle) { s.isSleeping = true; s.sleptAt = next }
             }
             t = next
         }
         if date > s.updatedAt { s.updatedAt = date }
         if date >= s.reactionUntil { s.reaction = .none }
+        if date >= s.activityUntil { s.activity = nil }
         return s
     }
 
-    private mutating func react(_ r: CatReaction, _ now: Date, _ seconds: TimeInterval) {
-        reaction = r
-        reactionUntil = now.addingTimeInterval(seconds)
-    }
+    private mutating func act(_ a: CatScene, _ now: Date, _ secs: TimeInterval) { activity = a; activityUntil = now.addingTimeInterval(secs) }
+    private mutating func react(_ r: CatReaction, _ now: Date, _ secs: TimeInterval) { reaction = r; reactionUntil = now.addingTimeInterval(secs) }
 
     mutating func apply(_ action: CatAction, at now: Date) {
         self = advanced(to: now)
         lastInteraction = now
         switch action {
         case .pet:
-            hearts += 1
-            if isSleeping {
-                fun = min(100, fun + 3)
-                react(.purrInSleep, now, 6)
-            } else {
-                fun = min(100, fun + 8)
-                react(.petted, now, 8)
-            }
+            hearts += 1; fun = min(100, fun + 6)
+            react(isSleeping ? .purr : .petted, now, 8)
         case .feed:
-            if fullness >= 92 {
-                react(.full, now, 6)
-            } else {
-                isSleeping = false
-                fullness = min(100, fullness + 35)
-                react(.eating, now, 14)
-            }
-        case .play:
-            if isSleeping {
-                isSleeping = false
-                react(.grumpy, now, 6)
-            } else if energy < 15 {
-                react(.tooTired, now, 6)
-            } else {
-                fun = min(100, fun + 25)
-                energy = max(0, energy - 8)
-                fullness = max(0, fullness - 3)
-                react(.playing, now, 14)
-            }
+            if fullness >= 92 { react(.full, now, 6); return }
+            isSleeping = false; fullness = min(100, fullness + 35); act(.eat, now, 40)
+        case .drink:
+            isSleeping = false; act(.drink, now, 30)
+        case .yarn, .pompom:
+            if isSleeping { isSleeping = false; react(.grumpy, now, 6); return }
+            if energy < 15 { react(.tooTired, now, 6); return }
+            fun = min(100, fun + 22); energy = max(0, energy - 6)
+            act(action == .yarn ? .yarn : .pompom, now, 45)
+        case .window:
+            isSleeping = false; fun = min(100, fun + 8); act(.window, now, 180)
         case .toggleSleep:
-            if isSleeping {
-                isSleeping = false
-                react(.wokeUp, now, 6)
-            } else {
-                isSleeping = true
-                sleptAt = now
-                react(.fellAsleep, now, 6)
-            }
+            if isSleeping { isSleeping = false; react(.wokeUp, now, 6); act(.stretch, now, 20) }
+            else { isSleeping = true; sleptAt = now; activity = nil }
         }
     }
 
     // MARK: What the widget shows
 
-    var pose: CatPose {
-        if isSleeping { return .sleeping }
-        switch reaction {
-        case .eating: return .eating
-        case .playing: return .playing
-        default: return .sitting
-        }
+    var mood: String {
+        if fullness < 25 { return "hungry" }
+        if energy < 20 { return "tired" }
+        if fun < 25 { return "bored" }
+        return "ok"
     }
 
-    var mood: CatMood {
-        if fullness < 25 { return .hungry }
-        if energy < 20 { return .tired }
-        if fun < 25 { return .bored }
-        if fullness > 55 && fun > 55 && energy > 40 { return .happy }
-        return .okay
+    /// The scene at a moment in time. When you're not playing with him,
+    /// Taro picks something new to do every 10 minutes.
+    func scene(at date: Date) -> CatScene {
+        if isSleeping { return .sleep }
+        if let a = activity, date < activityUntil { return a }
+        let slot = Int(date.timeIntervalSince1970 / 600)
+        var r = UInt64(truncatingIfNeeded: slot) &* 0x9E3779B97F4A7C15
+        r ^= r >> 29
+        let options: [(CatScene, Int)] = [(.sit, 4), (.loaf, 3), (.window, 3), (.perch, 2), (.pompom, 2), (.stretch, 1), (.yarn, fun < 40 ? 3 : 1)]
+        var n = Int(r % UInt64(options.reduce(0) { $0 + $1.1 }))
+        for (s, w) in options { if n < w { return s }; n -= w }
+        return .sit
     }
 
-    var message: String? {
+    /// Facing right (1) or left (-1), varying so he doesn't look frozen.
+    func facing(at date: Date) -> Double {
+        Int(date.timeIntervalSince1970 / 600) % 3 == 0 ? -1 : 1
+    }
+
+    func message(at date: Date) -> String? {
         switch reaction {
         case .petted: return "Purrrr… ♥"
-        case .purrInSleep: return "mrrp… zzz"
-        case .eating: return "Nom nom nom!"
-        case .playing: return "Gotcha, yarn!"
-        case .tooTired: return "Too sleepy to play…"
+        case .purr: return "mrrp… zzz"
         case .full: return "I'm full, thanks!"
+        case .grumpy: return "Hey! I was napping"
         case .wokeUp: return "Mrrow? I'm up!"
-        case .fellAsleep: return "Goodnight…"
-        case .grumpy: return "Hey! I was napping 😾"
+        case .tooTired: return "Too sleepy to play…"
         case .none: break
         }
-        if isSleeping { return nil }
+        switch scene(at: date) {
+        case .eat: return "Nom nom nom!"
+        case .pompom: return "Swat swat!"
+        case .yarn: return "Gotcha, yarn!"
+        case .window: return "Birds!"
+        case .sleep: return nil
+        default: break
+        }
         switch mood {
-        case .hungry: return "I'm hungry… 🍗"
-        case .bored: return "Play with me!"
-        case .tired: return "So sleepy…"
+        case "hungry": return "I'm hungry…"
+        case "bored": return "Play with me!"
+        case "tired": return "So sleepy…"
         default: return nil
         }
     }
@@ -163,14 +136,12 @@ struct CatState: Codable, Equatable {
 // MARK: - Saving
 
 enum CatStore {
-    private static let key = "mochi.state.v1"
+    private static let key = "taro.state.v2"
 
     static func load(at date: Date = Date()) -> CatState {
         var saved = CatState()
         if let data = UserDefaults.standard.data(forKey: key),
-           let decoded = try? JSONDecoder().decode(CatState.self, from: data) {
-            saved = decoded
-        }
+           let decoded = try? JSONDecoder().decode(CatState.self, from: data) { saved = decoded }
         return saved.advanced(to: date)
     }
 
@@ -178,8 +149,6 @@ enum CatStore {
         let now = Date()
         var s = load(at: now)
         s.apply(action, at: now)
-        if let data = try? JSONEncoder().encode(s) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
+        if let data = try? JSONEncoder().encode(s) { UserDefaults.standard.set(data, forKey: key) }
     }
 }

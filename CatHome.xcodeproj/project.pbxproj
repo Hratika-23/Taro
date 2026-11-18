@@ -19,9 +19,9 @@
 			isa = PBXBuildFile;
 			productRef = 7764B54D28D5ABFD28EA5435;
 		};
-		5D8476927D574BFF91E785B2 = {
+		538625131E3A9F921D8A92C3 = {
 			isa = PBXBuildFile;
-			fileRef = 63E14239201FBA33DD4337F8;
+			fileRef = F18A7925AC6D9A8EA6FD1F0F;
 		};
 		6798322EA00ADBFAA5F139D7 = {
 			isa = PBXBuildFile;
@@ -126,12 +126,6 @@
 			path = CatHomeWidget.swift;
 			sourceTree = "<group>";
 		};
-		63E14239201FBA33DD4337F8 = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			path = CatView.swift;
-			sourceTree = "<group>";
-		};
 		83B9F01935C803F70DA0D7D1 = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -179,6 +173,12 @@
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
 			path = RoomView.swift;
+			sourceTree = "<group>";
+		};
+		F18A7925AC6D9A8EA6FD1F0F = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = Clay.swift;
 			sourceTree = "<group>";
 		};
 /* End PBXFileReference section */
@@ -230,7 +230,7 @@
 				B75C5722AFF4E2FAE4AA086F,
 				BB0EF877477B96A9573AB441,
 				D5846974034B363E5807D74B,
-				63E14239201FBA33DD4337F8,
+				F18A7925AC6D9A8EA6FD1F0F,
 				BFE635E5F959E845DDBC09D7,
 				1E074C364FFBBFC059154E66,
 				30C1E30227ACEEBE6556A3CB,
@@ -369,7 +369,7 @@
 				BFD60308CDC3F9454B22A267,
 				D30A91F5D763E9E2396DF5C6,
 				DB9A265217957144A7CFB257,
-				5D8476927D574BFF91E785B2,
+				538625131E3A9F921D8A92C3,
 				6798322EA00ADBFAA5F139D7,
 				6F28F86933EF5DC345EB9951,
 			);

@@ -9,6 +9,25 @@ permissions:
   contents: write
 
 jobs:
+  preview:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render widget screenshots
+        run: |
+          mkdir -p out
+          swiftc -parse-as-library -O \
+            CatWidget/Theme.swift CatWidget/CatState.swift CatWidget/CatIntents.swift \
+            CatWidget/Clay.swift CatWidget/RoomView.swift \
+            Preview/LiveMotionPreview.swift Preview/render.swift -o render
+          ./render out
+      - name: Publish screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete preview --yes --cleanup-tag || true
+          gh release create preview out/*.png --title "Widget preview" --notes "Rendered widget screenshots" --prerelease
+
   build:
     runs-on: macos-15
     steps:
